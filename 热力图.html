@@ -1,0 +1,140 @@
+<!DOCTYPE HTML>
+
+<html>
+	<head>
+		<title>ArcGIS desktop——“热力图”实现方法比较</title>
+		<meta charset="utf-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1" />
+		<!--[if lte IE 8]><script src="assets/js/ie/html5shiv.js"></script><![endif]-->
+		<link rel="stylesheet" href="assets/css/main.css" />
+		<!--[if lte IE 9]><link rel="stylesheet" href="assets/css/ie9.css" /><![endif]-->
+		<!--[if lte IE 8]><link rel="stylesheet" href="assets/css/ie8.css" /><![endif]-->
+	</head>
+	<body>
+		<!-- Wrapper -->
+			<div id="wrapper">
+
+				<!-- Header -->
+					<header id="header">
+						<div class="inner">
+
+							<!-- Nav -->
+								<nav>
+									<ul>
+										<li><a href="#menu">索引</a></li>
+									</ul>
+								</nav>
+
+						</div>
+					</header>
+
+				<!-- Menu -->
+					<nav id="menu">
+						<h2>索引</h2>
+						<ul>
+							<li><a href="index.html">主页</a></li>
+							<li><a href="generic.html">生活趣事</a></li>
+							<li><a href="generic.html">学习心得</a></li>
+							<li><a href="generic.html">读书感悟</a></li>
+							<li><a href="elements.html">about me</a></li>
+						</ul>
+					</nav>
+
+				<!-- Main -->
+					<div id="main">
+						<div class="inner">
+							<h1>ArcGIS desktop——“热力图”实现方法比较</h1>
+							<span class="image main"><img src="images/timg.jpg" alt="" /></span>
+							<p>前几天接了一个电话，客户问我怎么才能用ArcGIS画出“百度地图热力图”中的那种炫酷的热力图，来反应采样点密集程度，而且当他进行缩放时热力图的形状也要能动态改变，就像下面左图、右图这样：</p>
+
+							<p><img src="http://img.blog.csdn.net/20161209173452025?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl0dGxlX3JlZGR5/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast" alt="这里写图片描述" title=""></p>
+
+							<p>客户的需求是要在前端显示热力图，但是数据量非常大所以不愿意用前端API的方式实现。他说：“我查了很多资料，<strong>密度分析</strong>，<strong>kriging插值</strong>和<strong>热点分析</strong>三个工具我都试过了，但是哪个都不能做到我想要的效果，是我选择的方法错了，还是设置的参数不对呢？”</p>
+
+							<p>这样的问题我不是第一次听人说起，相信也绝不是最后一次。首先我先给出这个问题的答案：<strong>三种工具都不能做到！</strong></p>
+
+							<p>下面容我卖个关子，我先分别介绍一下这三个工具，说说他们为什么不行，最后再说说怎么做才能实现这个需求。</p>
+
+							<hr>
+
+
+
+							<h2 id="一-kriging插值">一、 kriging插值</h2>
+
+							<p><a href="http://desktop.arcgis.com/zh-cn/arcmap/latest/extensions/geostatistical-analyst/kriging-in-geostatistical-analyst.htm">插值</a>和“热力图”是最不沾边的一个工具，如果说他们之间还有什么共同点，他们都是通过一些点（线）数据生成一个栅格表面。</p>
+
+							<p>在我的理解中，插值是通过数据的自相关性创建出确定性函数或地统计模型，从而预测测量点周围未知区域的属性的工具。而热力图则是通过高亮的渲染色彩来反映点（线）要素的聚集程度。插值结果是对数据属性值的预测，而热力图是对数据密度表现。</p>
+
+							<p><img src="http://img.blog.csdn.net/20161209175710520?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl0dGxlX3JlZGR5/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast" alt="这里写图片描述" title=""></p>
+
+							<p>偶尔有极特殊的情况下插值结果图长得跟热力图很像，像得仿佛换个颜色就能说自己是热力图了。但那时因为恰好观测点喜欢扎堆儿，而且恰好每一堆儿观测点的观测值都很相似。但这并不代表你可以用插值工具来绘制热力图，这是完全不搭边儿的两个功能。</p>
+
+
+
+							<h2 id="二-热点分析">二、 热点分析</h2>
+
+							<p>我特别能理解很多人认为热点分析是用来绘制热力图的，就像东京热，北京也很热一样。但是很遗憾的告诉大家，<strong>热力图</strong>的英文是：<em>Heat Map</em>，而<strong>热点分析</strong>则是： <em>Hot Spot Analysis</em>，两者的“热”字根本不是一个字。</p>
+
+							<p><a href="http://desktop.arcgis.com/zh-cn/arcmap/latest/tools/spatial-statistics-toolbox/hot-spot-analysis.htm">热点分析</a>工具确实可以统计出地理数据的聚类情况，但这个工具是基于数据值来统计的。想想一下，我对一个城市每隔一公里均匀设置采样点，采集各个地区的空气质量，<strong>在热力图看来</strong>，这些点在小比例尺下就是一坨，大比例尺下则是一个一个点，毫无聚集情况。但是如果用<strong>热点分析</strong>进行统计，则可能会发现某个点及其周围几个点都具有较高的空气污染，那么这几个点就会作为热点被统计出来。</p>
+
+							<p>而且ArcGIS中的热点分析结果是将数据的热点和冷点分别标记出来，输出数据仍然为点要素，如下左图所示。要想以栅格的形式反映一片区域的聚类情况，还需要对这些点进行进一步处理，如下右图所示。 <br>
+							<img src="http://img.blog.csdn.net/20161212151954712?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl0dGxlX3JlZGR5/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast" alt="这里写图片描述" title=""></p>
+
+
+
+							<h2 id="三-密度分析">三、 密度分析</h2>
+
+							<p>为什么把密度分析放在最后呢，因为密度分析工具和热力图的目的是最为相近的，参考<a href="http://desktop.arcgis.com/zh-cn/arcmap/latest/tools/spatial-analyst-toolbox/understanding-density-analysis.htm">密度分析帮助文档</a>：</p>
+
+							<blockquote>
+							  <p>密度分析可以对某个现象的已知量进行处理，然后将这些量分散到整个地表上，依据是在每个位置测量到的量和这些测量量所在位置的空间关系。密度表面可以显示出点要素或线要素较为集中的地方。</p>
+							</blockquote>
+
+							<p>密度分析的工作原理就是设置一个搜索半径，搜索半径内的栅格像元值就是这个搜索区域内的密度。当我们使用的是点密度分析工具时，工具会进行简单的密度计算，如果两个点的搜索区域有重叠，则将重叠区域内的栅格像元值相加，如下图左所示。当我们使用核密度分析工具时，则会根据二次核函数对搜索区域进行计算，最终拟合为光滑锥状的搜索范围，如下图右所示。</p>
+
+							<p><img src="http://img.blog.csdn.net/20161212151828788?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl0dGxlX3JlZGR5/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast" alt="这里写图片描述" title=""></p>
+
+							<p>可以看出，核密度分析工具的效果与我们希望得到的热力图效果已经很相近了，只要改一下色带的设置即可。但是我们的需求中还有一点没有实现，我们希望热力图可以随着比例尺变化动态的改变，就像百度地图热力图一样，<strong>核密度分析工具是无法实现这个需求的，我们需要用ArcGIS pro来实现它！</strong></p>
+
+							<hr>
+
+
+
+							<h2 id="四-arcgis-pro-热点图">四、 ArcGIS pro 热点图</h2>
+
+							<p>ArcGIS pro提供的<a href="http://pro.arcgis.com/zh-cn/pro-app/help/mapping/symbols-and-styles/heat-map.htm">热点图符号系统</a>是通过核密度分析功能，基于数据的分布密度，动态地对点数据进行热力图渲染。与核密度分析工具类似，热点图符号系统也可以选择<strong>搜索半径</strong>和<strong>权重字段</strong>。而热点图符号系统还提供额外的<strong>渲染质量</strong>设置选项，这里可以选择优先渲染效果或者渲染速度，如果提高渲染速度，工具会对点数据集进行不同程度上的<strong>动态聚合</strong>， 从而达到提升渲染速度的需求，如下图左所示。</p>
+
+							<p><img src="http://img.blog.csdn.net/20161212154609741?watermark/2/text/aHR0cDovL2Jsb2cuY3Nkbi5uZXQvbGl0dGxlX3JlZGR5/font/5a6L5L2T/fontsize/400/fill/I0JBQkFCMA==/dissolve/70/gravity/SouthEast" alt="这里写图片描述" title=""></p>
+
+							<p>而且在ArcGIS pro中，我们还可以编辑热力图的色带（因为原装的几条色带都丑爆了，不编辑不行！），我们可以增减色带的颜色区间，更改每一个区间的颜色，还支持透明度的更改，如上图右所示。</p>
+						</div>
+					</div>
+
+				<!-- Footer -->
+					<footer id="footer">
+						<div class="inner">
+							<section>
+								<h2>Follow</h2>
+								<ul class="icons">
+									<li><a href="https://www.facebook.com/profile.php?id=100006447601996" class="icon style2 fa-facebook"><span class="label">Facebook</span></a></li>
+									<li><a href="https://github.com/jy2881" class="icon style2 fa-github"><span class="label">GitHub</span></a></li>
+									<li><a href="m13910966261@163.com" class="icon style2 fa-envelope-o"><span class="label">Email</span></a></li>
+								</ul>
+							</section>
+							<ul class="copyright">
+								<li>&copy; 2018</li><li>Design: jy2881</li>
+							</ul>
+						</div>
+					</footer>
+
+			</div>
+
+		<!-- Scripts -->
+			<script src="assets/js/jquery.min.js"></script>
+			<script src="assets/js/skel.min.js"></script>
+			<script src="assets/js/util.js"></script>
+			<!--[if lte IE 8]><script src="assets/js/ie/respond.min.js"></script><![endif]-->
+			<script src="assets/js/main.js"></script>
+
+	</body>
+</html>
